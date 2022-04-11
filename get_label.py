@@ -1,6 +1,7 @@
 # ein beispiel zur erstellung von labels mit der soap-API von dhl
 # WICHTIG! die zeep lib installieren:  https://docs.python-zeep.org/en/master/
 
+import datetime
 import os
 from requests import Session
 from requests.auth import HTTPBasicAuth
@@ -47,7 +48,7 @@ labelData = {
                 'product': 'V66WPI',
                 'accountNumber': '22222222226601',
                 'customerReference': '123ab43cSSD',
-                'shipmentDate': '2022-02-22',
+                'shipmentDate': datetime.date.today().strftime('%Y-%m-%d'),
                 'ShipmentItem': {
                     'weightInKG': 0.75,
                     'lengthInCM': 20,
@@ -56,7 +57,7 @@ labelData = {
                 },
                 'Notification': 'mail@mail.com',
                 'Service': {
-                    'Premium': {'active': '1'}, # Premium - mit tracking = 1 sonst 0
+                    'Premium': {'active': '1'},  # Premium - mit tracking = 1 sonst 0
                 }
             },
             'Shipper': {
@@ -125,5 +126,5 @@ print(result)
 
 # für mich nur wichtige daten:
 o = input_dict.get('CreationState')[0]
-print(o.get('shipmentNumber')) # tracking id
-print(o.get('LabelData').get('labelUrl')) # label download url
+print(o.get('shipmentNumber'))  # tracking id
+print(o.get('LabelData').get('labelUrl'))  # label download url
