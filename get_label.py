@@ -1,6 +1,7 @@
 # ein beispiel zur erstellung von labels mit der soap-API von dhl
 # WICHTIG! die zeep lib installieren:  https://docs.python-zeep.org/en/master/
 
+import datetime
 import os
 from requests import Session
 from requests.auth import HTTPBasicAuth
@@ -8,32 +9,19 @@ from zeep import Client, Transport, xsd, helpers
 
 user = your_user_name
 password = your_portal_password
+sandbox = True  # Sandbox benutzen?
 
-# WICHTIG! in der wsdl datei muss die zeile:
-# <soap:address location="https://cig.dhl.de/services/production/soap"/>
-# für die sandbox angepasst werden:
-#  <soap:address location="https://cig.dhl.de/services/sandbox/soap"/>
 
-wsdl = 'test-geschaeftskundenversand-api-3.2.0.wsdl'
+wsdl = 'geschaeftskundenversand-api-3.2.2.wsdl'
 
 session = Session()
 session.auth = HTTPBasicAuth(user, password)
-session.get(url='https://cig.dhl.de/services/sandbox/soap')
 
-header = xsd.Element(
-    '{http://test.python-zeep.org}Authentification',
-    xsd.ComplexType([
-        xsd.Element(
-            '{http://test.python-zeep.org}user',
-            xsd.String()),
-        xsd.Element(
-            '{http://test.python-zeep.org}signature',
-            xsd.String()),
-    ])
-)
-
-header_value = header(user='2222222222_01', signature='pass')
 client = Client(wsdl, transport=Transport(session=session))
+
+auth_header_element = client.get_element('ns0:Authentification')
+auth_header = auth_header_element(user='2222222222_01', signature='pass')
+client.set_default_soapheaders([auth_header])
 
 labelData = {
     'Version': {
@@ -47,7 +35,7 @@ labelData = {
                 'product': 'V66WPI',
                 'accountNumber': '22222222226601',
                 'customerReference': '123ab43cSSD',
-                'shipmentDate': '2022-02-22',
+                'shipmentDate': datetime.date.today().strftime('%Y-%m-%d'),
                 'ShipmentItem': {
                     'weightInKG': 0.75,
                     'lengthInCM': 20,
@@ -56,7 +44,7 @@ labelData = {
                 },
                 'Notification': 'mail@mail.com',
                 'Service': {
-                    'Premium': {'active': '1'}, # Premium - mit tracking = 1 sonst 0
+                    'Premium': {'active': '1'},  # Premium - mit tracking = 1 sonst 0
                 }
             },
             'Shipper': {
@@ -117,7 +105,15 @@ labelData = {
     }
 }
 
-result = client.service.createShipmentOrder(_soapheaders=[header_value], **labelData)
+service = client.service
+if sandbox:  # Im Sandbox-Modus wird die Service-URL überschrieben
+    assert len(client.wsdl.bindings) == 1
+    service = client.create_service(
+        next(iter(client.wsdl.bindings)),
+        'https://cig.dhl.de/services/sandbox/soap'
+    )
+
+result = service.createShipmentOrder(**labelData)
 input_dict = helpers.serialize_object(result)
 
 os.system('clear')
@@ -125,5 +121,5 @@ print(result)
 
 # für mich nur wichtige daten:
 o = input_dict.get('CreationState')[0]
-print(o.get('shipmentNumber')) # tracking id
-print(o.get('LabelData').get('labelUrl')) # label download url
+print(o.get('shipmentNumber'))  # tracking id
+print(o.get('LabelData').get('labelUrl'))  # label download url
