@@ -9,17 +9,13 @@ from zeep import Client, Transport, xsd, helpers
 
 user = your_user_name
 password = your_portal_password
+sandbox = True  # Sandbox benutzen?
 
-# WICHTIG! in der wsdl datei muss die zeile:
-# <soap:address location="https://cig.dhl.de/services/production/soap"/>
-# für die sandbox angepasst werden:
-#  <soap:address location="https://cig.dhl.de/services/sandbox/soap"/>
 
-wsdl = 'test-geschaeftskundenversand-api-3.2.0.wsdl'
+wsdl = 'geschaeftskundenversand-api-3.2.2.wsdl'
 
 session = Session()
 session.auth = HTTPBasicAuth(user, password)
-session.get(url='https://cig.dhl.de/services/sandbox/soap')
 
 header = xsd.Element(
     '{http://test.python-zeep.org}Authentification',
@@ -118,7 +114,15 @@ labelData = {
     }
 }
 
-result = client.service.createShipmentOrder(_soapheaders=[header_value], **labelData)
+service = client.service
+if sandbox:  # Im Sandbox-Modus wird die Service-URL überschrieben
+    assert len(client.wsdl.bindings) == 1
+    service = client.create_service(
+        next(iter(client.wsdl.bindings)),
+        'https://cig.dhl.de/services/sandbox/soap'
+    )
+
+result = service.createShipmentOrder(_soapheaders=[header_value], **labelData)
 input_dict = helpers.serialize_object(result)
 
 os.system('clear')
