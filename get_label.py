@@ -17,20 +17,11 @@ wsdl = 'geschaeftskundenversand-api-3.2.2.wsdl'
 session = Session()
 session.auth = HTTPBasicAuth(user, password)
 
-header = xsd.Element(
-    '{http://test.python-zeep.org}Authentification',
-    xsd.ComplexType([
-        xsd.Element(
-            '{http://test.python-zeep.org}user',
-            xsd.String()),
-        xsd.Element(
-            '{http://test.python-zeep.org}signature',
-            xsd.String()),
-    ])
-)
-
-header_value = header(user='2222222222_01', signature='pass')
 client = Client(wsdl, transport=Transport(session=session))
+
+auth_header_element = client.get_element('ns0:Authentification')
+auth_header = auth_header_element(user='2222222222_01', signature='pass')
+client.set_default_soapheaders([auth_header])
 
 labelData = {
     'Version': {
@@ -122,7 +113,7 @@ if sandbox:  # Im Sandbox-Modus wird die Service-URL überschrieben
         'https://cig.dhl.de/services/sandbox/soap'
     )
 
-result = service.createShipmentOrder(_soapheaders=[header_value], **labelData)
+result = service.createShipmentOrder(**labelData)
 input_dict = helpers.serialize_object(result)
 
 os.system('clear')
